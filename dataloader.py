@@ -42,13 +42,15 @@ class DataModule(pl.LightningDataModule):
             stratify=train_labels_full, 
             random_state=42
         )
-        
-        test_texts, _, test_labels, _ = train_test_split(
-            test_texts_full, test_labels_full, 
-            train_size=self.config.get('TEST_SUBSET_RATIO', 0.5), 
-            stratify=test_labels_full, 
-            random_state=42
-        )
+        if self.config['USE_TEST_SUBSET']:
+            test_texts, _, test_labels, _ = train_test_split(
+                test_texts_full, test_labels_full, 
+                train_size=self.config.get('TEST_SUBSET_RATIO', 0.5), 
+                stratify=test_labels_full, 
+                random_state=42)
+            
+            test_texts_full = test_texts
+            test_labels_full = test_labels
         
         # Split train into train/val
         train_texts, val_texts, train_labels, val_labels = train_test_split(
@@ -64,8 +66,8 @@ class DataModule(pl.LightningDataModule):
             self.val_dataset = self._create_dataset(val_texts, val_labels, 'val')
             
         if stage in (None, 'test'):
-            self.test_dataset = self._create_dataset(test_texts, test_labels, 'test')
-    
+            self.test_dataset = self._create_dataset(test_texts_full, test_labels_full, 'test')
+
     def _create_dataset(self, texts, labels, split):
         """Create dataset with caching"""
         cache_path = os.path.join(
