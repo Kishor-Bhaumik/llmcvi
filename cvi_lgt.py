@@ -173,7 +173,7 @@ def main(cfg: DictConfig):
         accelerator='gpu',
         devices=[config['DEVICE']], 
         gradient_clip_val=1.0,
-        log_every_n_steps=50,
+        log_every_n_steps=2,
         enable_progress_bar=True,
         # limit_train_batches=config.get('LIMIT_TRAIN_BATCHES', 1),
         # limit_val_batches=config.get('LIMIT_VAL_BATCHES', 1),
