@@ -9,13 +9,12 @@ from pytorch_lightning.callbacks import ModelCheckpoint, EarlyStopping
 from utils.fast_slt import _compute_silhouette_loss
 import pytorch_lightning as pl
 from pytorch_lightning.loggers import WandbLogger
-import os
+import os,time
 import hydra
 from omegaconf import DictConfig, OmegaConf
 
-
-
 torch.set_float32_matmul_precision('medium')  # Set precision for matmul operations
+
 class BertClassifier(pl.LightningModule):
     def __init__(self, config):
         super().__init__()
@@ -37,6 +36,8 @@ class BertClassifier(pl.LightningModule):
         # For collecting embeddings during validation
         self.validation_embeddings = []
         self.validation_labels = []
+        # for param in self.bert.parameters():
+        #     param.requires_grad = False
 
     def forward(self, input_ids, attention_mask):
         outputs = self.bert(input_ids=input_ids, attention_mask=attention_mask)
@@ -56,9 +57,9 @@ class BertClassifier(pl.LightningModule):
         
         # Add silhouette loss if enabled and after warmup
         if self.use_silhouette and self.current_epoch >= self.hparams.get('SILHOUETTE_START_EPOCH', 0):
-            silhouette_loss = self.slt_score(self.num_clusters, embeddings)
+            silhouette_loss = 1- self.slt_score(self.num_clusters, embeddings)
             if not torch.isnan(silhouette_loss):
-                total_loss = classification_loss + self.silhouette_weight * silhouette_loss
+                total_loss = classification_loss + self.silhouette_weight *  silhouette_loss
                 self.log('silhouette_loss', silhouette_loss, on_step=True, on_epoch=True)
         
         # Calculate accuracy (same as before)
@@ -134,8 +135,11 @@ def main(cfg: DictConfig):
     if config['USE_LOGGER']:
         wandb_logger = WandbLogger(
         project=config['PROJECT_NAME'],
-        config=config )
-    
+        name=config['RUN_NAME'],
+        notes=config['NOTES_w_cvi'] if config['USE_SILHOUETTE'] else config['NOTES_wo_cvi'],
+        config=config
+    )
+
     # Create data module
     data_module = DataModule(config)
     data_module.setup()  # Setup to get num_labels
@@ -169,16 +173,22 @@ def main(cfg: DictConfig):
         gradient_clip_val=1.0,
         log_every_n_steps=50,
         enable_progress_bar=True,
-        limit_train_batches=config.get('LIMIT_TRAIN_BATCHES', 20),
-        limit_val_batches=config.get('LIMIT_VAL_BATCHES', 1),
-        limit_test_batches=config.get('LIMIT_TEST_BATCHES', 1)
+        # limit_train_batches=config.get('LIMIT_TRAIN_BATCHES', 1),
+        # limit_val_batches=config.get('LIMIT_VAL_BATCHES', 1),
+        # limit_test_batches=config.get('LIMIT_TEST_BATCHES', 1)
     )
     
     # Train model
+    start_time= time.time()
     trainer.fit(model, data_module)
+    end_time = time.time()
+    print(f"Training completed in {end_time - start_time:.2f} seconds")
+    #log training time
+    if config['USE_LOGGER']:
+        wandb.log({"training_time_minutes": (end_time - start_time) / 60})
     
     # Test model
-    trainer.test(model, data_module, ckpt_path='best')
+    trainer.test(model, data_module ) #, ckpt_path='best')
     
     # Finish wandb run
     wandb.finish() if config['USE_LOGGER'] else None
