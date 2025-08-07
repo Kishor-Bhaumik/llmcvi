@@ -13,14 +13,18 @@ SAVED_DATA_DIR: '/home/kbhau001/llm/tokenized_data'
 DATASET_NAME: 'ag_news'
 USE_LOGGER: False
 PROJECT_NAME: 'cvi-tracking'
+RUN_NAME: 'cvi-tracking-run'
+NOTES_wo_cvi: 'Experiment without CVI with ag_news dataset. the test set is full.'
+NOTES_w_cvi: 'Experiment with CVI with ag_news dataset. the test set is full. the loss is calculated as CE + SILHOUETTE_WEIGHT(1 - silhouette_loss).'
 
 TRAIN_SUBSET_RATIO: 0.1
+USE_TEST_SUBSET: False
 TEST_SUBSET_RATIO: 0.5
 
-USE_SILHOUETTE: True
+USE_SILHOUETTE: False
 SILHOUETTE_WEIGHT: 0.1  # λ parameter
 # NUM_CLUSTERS: 5  # or use num_labels
-SILHOUETTE_START_EPOCH: 0  # when to start applying silhouette loss
+SILHOUETTE_START_EPOCH: 0  # when to satart applying silhouette loss
 
 hydra:
   job:
