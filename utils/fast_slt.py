@@ -4,22 +4,16 @@ from sklearn.cluster import MiniBatchKMeans
 import torch.nn.functional as F
 
 
-def _compute_silhouette_loss(num_clusters, embeddings):
+def _compute_silhouette_loss(num_clusters, embeddings, goal=0.8):
     # Detached clustering (no gradients through cluster assignments)
     with torch.no_grad():
         normalized_embeddings = F.normalize(embeddings, dim=1)
         kmeans = MiniBatchKMeans(n_clusters=num_clusters, random_state=42, n_init=1)
         cluster_labels = torch.tensor(
             kmeans.fit_predict(normalized_embeddings.cpu().numpy()), 
-            device=embeddings.device
-        )
-    
-    # Compute silhouette score (with gradients for embeddings)
+            device=embeddings.device)
     normalized_embeddings = F.normalize(embeddings, dim=1)
     silhouette_score = get_fast_silhouette_score(normalized_embeddings, cluster_labels)
-    
-    # Convert to loss (we want to maximize silhouette, so minimize negative)
-    goal = 0.8  # target silhouette score
     silhouette_loss = abs(goal - silhouette_score)
     
     return silhouette_loss
