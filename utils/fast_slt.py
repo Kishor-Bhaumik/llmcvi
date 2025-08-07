@@ -12,7 +12,7 @@ def _compute_silhouette_loss(num_clusters, embeddings, goal=0.8):
         cluster_labels = torch.tensor(
             kmeans.fit_predict(normalized_embeddings.cpu().numpy()), 
             device=embeddings.device)
-    normalized_embeddings = F.normalize(embeddings, dim=1)
+    #normalized_embeddings = F.normalize(embeddings, dim=1)
     silhouette_score = get_fast_silhouette_score(normalized_embeddings, cluster_labels)
     silhouette_loss = abs(goal - silhouette_score)
     
