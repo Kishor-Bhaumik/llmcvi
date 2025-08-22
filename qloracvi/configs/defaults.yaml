@@ -1,0 +1,72 @@
+defaults:
+  # - override hydra/launcher: submitit_slurm
+  - _self_
+
+
+MODEL_NAME: 'bert-base-uncased'
+MAX_LENGTH: 128
+BATCH_SIZE: 256
+EPOCHS: 20
+LEARNING_RATE: 2e-5
+DEVICE: 0
+SAVED_DATA_DIR: '/home/kbhau001/llm/tokenized_data' 
+DATASET_NAME: 'ag_news' #'banking77' #'emotion' #'yelp_review_full' #
+
+USE_LOGGER: True
+
+PROJECT_NAME: 'Qlora-CVI-ag-news'
+RUN_NAME: 'fewshot50'
+NOTES_wo_cvi: 'Experiment without CVI with ag_news dataset. the test set is full.'
+NOTES_w_cvi: 'Experiment with CVI with ag_news dataset. the test set is full. the only loss is used is silhouette_loss.'
+
+TRAIN_SUBSET_RATIO: 0.1
+USE_TEST_SUBSET: False
+TEST_SUBSET_RATIO: 0.5
+
+USE_SILHOUETTE: False
+SILHOUETTE_WEIGHT: 0.1  # λ parameter
+SLT_score_GOAL: 1.0
+# NUM_CLUSTERS: 5  # or use num_labels
+SILHOUETTE_START_EPOCH: 0  # when to satart applying silhouette loss
+
+SHOW_CLASS_RATIO : False
+
+##Emotion dataset
+# Total samples: 16,000
+
+# Class 0 (sadness): 4,666 samples (29.2%)
+# Class 1 (joy): 5,362 samples (33.5%)
+# Class 2 (love): 1,304 samples (8.2%)
+# Class 3 (anger): 2,159 samples (13.5%)
+# Class 4 (fear): 1,937 samples (12.1%)
+#Class 5 (surprise): 572 samples (3.6%)
+
+## yelp dataset
+# Total samples: 650,000
+# Class 0 (1 star): 130,000 samples (20.0%)
+# Class 1 (2 star): 130,000 samples (20.0%)
+# Class 2 (3 stars): 130,000 samples (20.0%)
+# Class 3 (4 stars): 130,000 samples (20.0%)
+# Class 4 (5 stars): 130,000 samples (20.0%)
+
+#Ag news 
+# Total training samples: 120,000
+# Class 0 (World): 30,000 samples (25.0%)
+# Class 1 (Sports): 30,000 samples (25.0%)
+# Class 2 (Business): 30,000 samples (25.0%)
+# Class 3 (Sci/Tech): 30,000 samples (25.0%)
+
+#banking 77 has 77 classes
+# ===================================
+few_shots : {0:50, 1:50, 2:50, 3:50}
+
+
+#LORA
+USE_QLORA: true
+LORA_R: 16
+LORA_ALPHA: 32  
+LORA_DROPOUT: 0.1
+
+hydra:
+  job:
+    chdir: True
