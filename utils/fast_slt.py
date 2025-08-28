@@ -2,21 +2,49 @@
 import torch
 from sklearn.cluster import MiniBatchKMeans
 import torch.nn.functional as F
+import faiss
+import numpy as np
+
+
+# def _compute_silhouette_loss(num_clusters, embeddings, goal=0.8):
+#     # Detached clustering (no gradients through cluster assignments)
+#     with torch.no_grad():
+#         gpu_id = embeddings.device.index
+#         normalized_embeddings_detached = F.normalize(embeddings.detach(), dim=1)
+#         kmeans_data = normalized_embeddings_detached.cpu().numpy().astype(np.float32)
+#         d = kmeans_data.shape[1]  # dimension   
+#         #res = faiss.StandardGpuResources()
+#         kmeans = faiss.Kmeans(d=d, k=num_clusters, niter=20, verbose=False, gpu=gpu_id)
+#         kmeans.train(kmeans_data)
+#         _, cluster_labels_np = kmeans.index.search(kmeans_data, 1)
+#         cluster_labels = torch.tensor(cluster_labels_np.ravel(), device=embeddings.device)
+#     # Normalize WITH gradients for silhouette computation
+#     normalized_embeddings = F.normalize(embeddings, dim=1)
+#     silhouette_score = get_fast_silhouette_score(normalized_embeddings, cluster_labels)
+#     if torch.isnan(silhouette_score):
+#         return torch.tensor(0.0, device=embeddings.device, requires_grad=True)
+#     silhouette_loss = abs(goal - silhouette_score)
+#     return silhouette_loss
 
 
 def _compute_silhouette_loss(num_clusters, embeddings, goal=0.8):
     # Detached clustering (no gradients through cluster assignments)
     with torch.no_grad():
-        normalized_embeddings = F.normalize(embeddings, dim=1)
-        kmeans = MiniBatchKMeans(n_clusters=num_clusters, random_state=42, n_init=1)
-        cluster_labels = torch.tensor(
-            kmeans.fit_predict(normalized_embeddings.cpu().numpy()), 
-            device=embeddings.device)
-    #normalized_embeddings = F.normalize(embeddings, dim=1)
+        # Normalize and convert to numpy
+        normalized_embeddings_detached = F.normalize(embeddings.detach(), dim=1)
+        kmeans_data = normalized_embeddings_detached.cpu().numpy().astype(np.float32)
+        kmeans = MiniBatchKMeans( n_clusters=num_clusters,max_iter=20, batch_size=min(1024, len(kmeans_data)),random_state=42,  n_init=3, reassignment_ratio=0.01)
+        cluster_labels_np = kmeans.fit_predict(kmeans_data)
+        cluster_labels = torch.tensor(cluster_labels_np, device=embeddings.device)
+    # Normalize WITH gradients for silhouette computation
+    normalized_embeddings = F.normalize(embeddings, dim=1)
     silhouette_score = get_fast_silhouette_score(normalized_embeddings, cluster_labels)
-    silhouette_loss = abs(goal - silhouette_score)
+    if torch.isnan(silhouette_score):
+        return torch.tensor(0.0, device=embeddings.device, requires_grad=True)
     
-    return silhouette_loss
+    silhouette_loss = abs(goal - silhouette_score)
+    return silhouette_score,silhouette_loss
+
 
 def get_fast_silhouette_score(feats: torch.Tensor, cluster_labels: torch.Tensor):
     device = feats.device
