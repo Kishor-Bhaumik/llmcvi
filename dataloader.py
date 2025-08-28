@@ -2,7 +2,7 @@
 import os
 import torch
 from torch.utils.data import TensorDataset
-from transformers import BertTokenizer
+from transformers import BertTokenizer, AutoTokenizer
 from datasets import load_dataset
 from sklearn.model_selection import train_test_split
 import pytorch_lightning as pl
@@ -13,7 +13,7 @@ class DataModule(pl.LightningDataModule):
     def __init__(self, config):
         super().__init__()
         self.config = config
-        self.tokenizer = BertTokenizer.from_pretrained(config['MODEL_NAME'])
+        self.tokenizer = AutoTokenizer.from_pretrained(config['MODEL_NAME'])
         self.saved_data_dir = config['SAVED_DATA_DIR']
         os.makedirs(self.saved_data_dir, exist_ok=True)
         
@@ -34,23 +34,37 @@ class DataModule(pl.LightningDataModule):
         # Update config with dataset info
         self.config['num_labels'] = dataset['train'].features['label'].num_classes
         self.config['label_names'] = dataset['train'].features['label'].names
-        
-        # For development, use smaller subsets
+
+        train_texts_list = list(train_texts_full)
+        train_labels_list = list(train_labels_full)
         train_texts, _, train_labels, _ = train_test_split(
-            train_texts_full, train_labels_full, 
+            train_texts_list, train_labels_list, 
             train_size=self.config.get('TRAIN_SUBSET_RATIO', 0.1), 
-            stratify=train_labels_full, 
+            stratify=train_labels_list, 
+            random_state=42 )
+
+        # For development, use smaller subsets
+        # train_texts, _, train_labels, _ = train_test_split(
+        #     train_texts_full, train_labels_full, 
+        #     train_size=self.config.get('TRAIN_SUBSET_RATIO', 0.1), 
+        #     stratify=train_labels_full, 
+        #     random_state=42
+        # )
+        test_texts_list = list(test_texts_full)
+        test_labels_list = list(test_labels_full)
+
+        test_texts, _, test_labels, _ = train_test_split(
+            test_texts_list, test_labels_list, 
+            train_size=self.config.get('TEST_SUBSET_RATIO', 0.5), 
+            stratify=test_labels_list, 
             random_state=42
         )
-        if self.config['USE_TEST_SUBSET']:
-            test_texts, _, test_labels, _ = train_test_split(
-                test_texts_full, test_labels_full, 
-                train_size=self.config.get('TEST_SUBSET_RATIO', 0.5), 
-                stratify=test_labels_full, 
-                random_state=42)
-            
-            test_texts_full = test_texts
-            test_labels_full = test_labels
+        # test_texts, _, test_labels, _ = train_test_split(
+        #     test_texts_full, test_labels_full, 
+        #     train_size=self.config.get('TEST_SUBSET_RATIO', 0.5), 
+        #     stratify=test_labels_full, 
+        #     random_state=42
+        # )
         
         # Split train into train/val
         train_texts, val_texts, train_labels, val_labels = train_test_split(
@@ -66,8 +80,8 @@ class DataModule(pl.LightningDataModule):
             self.val_dataset = self._create_dataset(val_texts, val_labels, 'val')
             
         if stage in (None, 'test'):
-            self.test_dataset = self._create_dataset(test_texts_full, test_labels_full, 'test')
-
+            self.test_dataset = self._create_dataset(test_texts, test_labels, 'test')
+    
     def _create_dataset(self, texts, labels, split):
         """Create dataset with caching"""
         cache_path = os.path.join(
