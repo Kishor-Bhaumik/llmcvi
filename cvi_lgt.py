@@ -23,7 +23,7 @@ class BertClassifier(pl.LightningModule):
 # Add clustering components for silhouette
         self.use_silhouette = self.hparams.get('USE_SILHOUETTE', False)
         self.silhouette_weight = self.hparams.get('SILHOUETTE_WEIGHT', 0.1)
-        self.num_clusters = self.hparams.get('NUM_CLUSTERS', self.hparams.num_labels)
+        # self.num_clusters = self.hparams.get('NUM_CLUSTERS', self.hparams.num_labels)
         self.goal = self.hparams.get('SLT_score_GOAL', 0.8)
         self.slt_score = _compute_silhouette_loss 
         # Model components
@@ -55,10 +55,11 @@ class BertClassifier(pl.LightningModule):
         # Main classification loss
         classification_loss = self.loss_fn(logits, labels)
         total_loss = classification_loss
-        
+        self.num_clusters = len(torch.unique(labels))
+
         # Add silhouette loss if enabled and after warmup
         if self.use_silhouette and self.current_epoch >= self.hparams.get('SILHOUETTE_START_EPOCH', 0):
-            silhouette_loss = self.slt_score(self.num_clusters, \
+            silhouette_loss, _ = self.slt_score(self.num_clusters, \
                                                 embeddings,goal=self.goal)
             if not torch.isnan(silhouette_loss):
                 total_loss = classification_loss + self.silhouette_weight *  silhouette_loss

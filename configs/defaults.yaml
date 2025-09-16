@@ -5,17 +5,17 @@ defaults:
 
 MODEL_NAME: 'bert-base-uncased'
 MAX_LENGTH: 128
-BATCH_SIZE: 256
+BATCH_SIZE: 128
 EPOCHS: 10
 LEARNING_RATE: 2e-5
 DEVICE: 0
-SAVED_DATA_DIR: '/home/kbhau001/llm/tokenized_data' 
-DATASET_NAME: 'ag_news' #'banking77' #'emotion' #'yelp_review_full' #
+SAVED_DATA_DIR: '/data/nicolasr/llmcvi/llm/tokenized_data' 
+DATASET_NAME: '20ng' #'banking77' #'emotion' #'yelp_review_full' #
 
 USE_LOGGER: True 
 
 PROJECT_NAME: 'cvi-w-kmeans'
-RUN_NAME: 'fewshot50'
+RUN_NAME: '20ng'
 NOTES_wo_cvi: 'Experiment without CVI with ag_news dataset. the test set is full.'
 NOTES_w_cvi: 'using test dataaset as the validation.'
 

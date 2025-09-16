@@ -3,11 +3,41 @@ import os
 import torch
 from torch.utils.data import TensorDataset
 from transformers import BertTokenizer, AutoTokenizer
-from datasets import load_dataset
+from datasets import load_dataset, Dataset, DatasetDict, ClassLabel
 from sklearn.model_selection import train_test_split
 import pytorch_lightning as pl
 from tqdm import tqdm
 from torch.utils.data import DataLoader, TensorDataset
+import pandas as pd
+
+def load_custom_dataset(dataset_name, root_dir="datasets"):
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    root_dir = os.path.join(script_dir, root_dir)
+
+    train_path = os.path.join(root_dir, str(dataset_name), "train.csv")
+    test_path  = os.path.join(root_dir, str(dataset_name), "test.csv")
+
+    if dataset_name == "snippets":
+        train_df = pd.read_csv(train_path, sep="\t", header=None, names=["label", "text"], usecols=[0, 1])
+        test_df  = pd.read_csv(test_path,  sep="\t", header=None, names=["label", "text"], usecols=[0, 1])
+    elif dataset_name in ['biomedical', 'stackoverflow']:
+        train_df = pd.read_csv(train_path, sep="\t", header=None, names=["label", "text"], usecols=[0, 2])
+        test_df  = pd.read_csv(test_path,  sep="\t", header=None, names=["label", "text"], usecols=[0, 2])
+
+    train_ds = Dataset.from_pandas(train_df, preserve_index=False)
+    test_ds  = Dataset.from_pandas(test_df, preserve_index=False)
+    dataset = DatasetDict({"train": train_ds, "test": test_ds})
+
+    unique_labels = sorted(set(dataset["train"]["label"]) | set(dataset["test"]["label"]))
+    label2id = {old: new for new, old in enumerate(unique_labels)}
+    dataset = dataset.map(lambda e: {"label": label2id[e["label"]]})
+
+    class_label = ClassLabel(
+        num_classes=len(unique_labels), names=[str(l) for l in unique_labels]
+    )
+    dataset = dataset.cast_column("label", class_label)
+
+    return dataset
 
 class DataModule(pl.LightningDataModule):
     def __init__(self, config):
@@ -19,11 +49,20 @@ class DataModule(pl.LightningDataModule):
         
     def prepare_data(self):
         # Download dataset
-        dataset = load_dataset(self.config['DATASET_NAME'])
-        
+        if self.config['DATASET_NAME'] in ['snippets', 'biomedical', 'stackoverflow']:
+            dataset = load_custom_dataset(self.config['DATASET_NAME'])
+        elif self.config['DATASET_NAME'] == "20ng":
+            dataset = load_dataset("SetFit/20_newsgroups")
+        else:
+            dataset = load_dataset(self.config['DATASET_NAME'])
+
     def setup(self, stage=None):
-        # Load dataset
-        dataset = load_dataset(self.config['DATASET_NAME'])
+        if self.config['DATASET_NAME'] in ['snippets', 'biomedical', 'stackoverflow']:
+            dataset = load_custom_dataset(self.config['DATASET_NAME'])
+        elif self.config['DATASET_NAME'] == "20ng":
+            dataset = load_dataset("SetFit/20_newsgroups")
+        else:
+            dataset = load_dataset(self.config['DATASET_NAME'])
 
         # Get full data
         train_texts_full = dataset['train']['text']
@@ -32,8 +71,12 @@ class DataModule(pl.LightningDataModule):
         test_labels_full = dataset['test']['label']
         
         # Update config with dataset info
-        self.config['num_labels'] = dataset['train'].features['label'].num_classes
-        self.config['label_names'] = dataset['train'].features['label'].names
+        if self.config['DATASET_NAME'] == "20ng":
+            self.config['num_labels'] = 20
+            self.config['label_names'] = list(range(20))
+        else:
+            self.config['num_labels'] = dataset['train'].features['label'].num_classes
+            self.config['label_names'] = dataset['train'].features['label'].names
 
         train_texts_list = list(train_texts_full)
         train_labels_list = list(train_labels_full)

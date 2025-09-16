@@ -27,23 +27,45 @@ import numpy as np
 #     return silhouette_loss
 
 
+
 def _compute_silhouette_loss(num_clusters, embeddings, goal=0.8):
     # Detached clustering (no gradients through cluster assignments)
     with torch.no_grad():
         # Normalize and convert to numpy
         normalized_embeddings_detached = F.normalize(embeddings.detach(), dim=1)
         kmeans_data = normalized_embeddings_detached.cpu().numpy().astype(np.float32)
-        kmeans = MiniBatchKMeans( n_clusters=num_clusters,max_iter=20, batch_size=min(1024, len(kmeans_data)),random_state=42,  n_init=3, reassignment_ratio=0.01)
+        
+        kmeans = MiniBatchKMeans(
+            n_clusters=num_clusters,
+            max_iter=20, 
+            batch_size=min(1024, len(kmeans_data)),
+            random_state=123, 
+            n_init=3, 
+            reassignment_ratio=0.01
+        )
         cluster_labels_np = kmeans.fit_predict(kmeans_data)
+        
+        # Relabel to ensure consecutive cluster IDs from 0 to n-1
+        unique_labels = np.unique(cluster_labels_np)
+        label_mapping = {old_label: new_label for new_label, old_label in enumerate(unique_labels)}
+        cluster_labels_np = np.array([label_mapping[label] for label in cluster_labels_np])
+        
+        # Verify we have the correct number of clusters
+        actual_clusters = len(unique_labels)
+        if actual_clusters != num_clusters:
+            print(f"Warning: Expected {num_clusters} clusters, got {actual_clusters}")
+        
         cluster_labels = torch.tensor(cluster_labels_np, device=embeddings.device)
+    
     # Normalize WITH gradients for silhouette computation
     normalized_embeddings = F.normalize(embeddings, dim=1)
     silhouette_score = get_fast_silhouette_score(normalized_embeddings, cluster_labels)
+    
     if torch.isnan(silhouette_score):
         return torch.tensor(0.0, device=embeddings.device, requires_grad=True)
     
     silhouette_loss = abs(goal - silhouette_score)
-    return silhouette_score,silhouette_loss
+    return silhouette_score, silhouette_loss
 
 
 def get_fast_silhouette_score(feats: torch.Tensor, cluster_labels: torch.Tensor):
