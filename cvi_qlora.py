@@ -62,7 +62,7 @@ class BertClassifier(pl.LightningModule):
     def training_step(self, batch, batch_idx):
         input_ids, attention_mask, labels = batch
         logits, embeddings = self(input_ids, attention_mask)
-        total_loss = self.loss_fn(logits, labels)
+        total_loss = self.hparams['MAIN_LOSS_WEIGHT'] + self.loss_fn(logits, labels)
         if self.hparams['USE_SILHOUETTE']:
             
             if self.hparams['CALCULATE_SLT_AFTER']==  "EACH_BATCH":
@@ -163,7 +163,9 @@ def main(cfg: DictConfig):
         project=config['PROJECT_NAME'],
         name=config['RUN_NAME'],
         notes=config['NOTES_w_cvi'] if config['USE_SILHOUETTE'] else config['NOTES_wo_cvi'],
-        config=config )
+        config=config ,
+        log_model=False,
+        )
 
     # Create data module
     data_module = DataModule(config)
@@ -221,3 +223,16 @@ def main(cfg: DictConfig):
 
 if __name__ == '__main__':
     main()
+
+
+
+'''
+okay this is bert-base-uncased.
+
+so I want to change the model in such wy that it calculates the scores after 3 , 6 , 9 and 12 layers of the bert model.
+
+the score from each layer will be logged. but for which layers siloutee loss will be calculated it will be mentioned
+ in config file as
+"CALCULATE_SLT_AFTER_LAYERS": 3 # or 6 or 9 or 12
+
+'''
