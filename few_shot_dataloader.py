@@ -49,13 +49,19 @@ class DataModule(pl.LightningDataModule):
         os.makedirs(self.saved_data_dir, exist_ok=True)
         
     def prepare_data(self):
+        # Dataset name mapping
+        dataset_map = {
+            'emotion': 'dair-ai/emotion',
+            '20ng': 'SetFit/20_newsgroups',
+        }
+        
+        dataset_name = dataset_map.get(self.config['DATASET_NAME'], self.config['DATASET_NAME'])
+        
         # Download dataset
         if self.config['DATASET_NAME'] in ['snippets', 'biomedical', 'stackoverflow']:
             dataset = load_custom_dataset(self.config['DATASET_NAME'])
-        elif self.config['DATASET_NAME'] == "20ng":
-            dataset = load_dataset("SetFit/20_newsgroups")
         else:
-            dataset = load_dataset(self.config['DATASET_NAME'])
+            dataset = load_dataset(dataset_name)
         
     def _show_class_distribution(self, labels, title="Dataset Class Distribution"):
         """Display class distribution statistics"""
@@ -74,9 +80,68 @@ class DataModule(pl.LightningDataModule):
             print(f"Class {class_label} ({class_name}): {count:,} samples ({percentage:.1f}%)")
         
         print("=" * 35)
-        print()
-    
+        print("~~", self.config['DATASET_NAME'], "~~")
+
     def _apply_few_shot_reduction(self, texts, labels):
+        """Apply few-shot reduction based on config['few_shots']"""
+        if 'few_shots' not in self.config:
+            return texts, labels
+        
+        few_shots_config = self.config['few_shots']
+        if not few_shots_config:
+            return texts, labels
+        
+        print("Applying few-shot reduction...")
+        
+        # Convert to lists for easier manipulation
+        texts_list = list(texts)
+        labels_list = list(labels)
+        
+        # Group indices by class FIRST
+        class_indices = {}
+        for idx, label in enumerate(labels_list):
+            if label not in class_indices:
+                class_indices[label] = []
+            class_indices[label].append(idx)
+        
+        # Get unique classes from the actual data
+        unique_classes = list(class_indices.keys())
+        
+        # Handle both dictionary and single number formats
+        if isinstance(few_shots_config, (int, float)):
+            # Convert single number to dictionary for all classes
+            few_shots_config = {cls: few_shots_config for cls in unique_classes}
+            print(f"Applying {list(few_shots_config.values())[0]}% to all classes")
+        
+        # Apply few-shot reduction
+        indices_to_keep = []
+        for class_label, indices in class_indices.items():
+            if class_label in few_shots_config:
+                # Calculate how many samples to keep
+                keep_percentage = few_shots_config[class_label]
+                num_to_keep = int(len(indices) * (keep_percentage / 100.0))
+                # Randomly sample indices to keep
+                sampled_indices = np.random.choice(indices, size=num_to_keep, replace=False)
+                indices_to_keep.extend(sampled_indices)
+                print(f"Class {class_label}: Keeping {num_to_keep}/{len(indices)} samples ({keep_percentage}%)")
+            else:
+                # Keep all samples for classes not in few_shots config
+                indices_to_keep.extend(indices)
+                print(f"Class {class_label}: Keeping all {len(indices)} samples (100%)")
+        
+        # Sort indices to maintain original order
+        indices_to_keep.sort()
+        
+        # Create reduced dataset
+        reduced_texts = [texts_list[i] for i in indices_to_keep]
+        reduced_labels = [labels_list[i] for i in indices_to_keep]
+        
+        print(f"Few-shot reduction complete: {len(reduced_texts)}/{len(texts_list)} samples retained")
+        
+        return reduced_texts, reduced_labels
+
+
+    def _apply_few_shot_reduction_for_differnt_class(self, texts, labels):
         """Apply few-shot reduction based on config['few_shots']"""
         if 'few_shots' not in self.config:
             return texts, labels
@@ -131,12 +196,18 @@ class DataModule(pl.LightningDataModule):
 
     def setup(self, stage=None):
         # Load dataset
+        dataset_map = {
+            'emotion': 'dair-ai/emotion',
+            '20ng': 'SetFit/20_newsgroups',
+        }
+        
+        dataset_name = dataset_map.get(self.config['DATASET_NAME'], self.config['DATASET_NAME'])
+        
+        # Download dataset
         if self.config['DATASET_NAME'] in ['snippets', 'biomedical', 'stackoverflow']:
             dataset = load_custom_dataset(self.config['DATASET_NAME'])
-        elif self.config['DATASET_NAME'] == "20ng":
-            dataset = load_dataset("SetFit/20_newsgroups")
         else:
-            dataset = load_dataset(self.config['DATASET_NAME'])
+            dataset = load_dataset(dataset_name)
 
         # Get full data
         train_texts_full = dataset['train']['text']
@@ -203,7 +274,13 @@ class DataModule(pl.LightningDataModule):
         few_shot_suffix = ""
         if 'few_shots' in self.config and self.config['few_shots']:
             # Create a string representation of few_shots for cache filename
-            few_shot_str = "_".join([f"{k}_{v}" for k, v in sorted(self.config['few_shots'].items(), key=lambda x: str(x[0]))])
+            # Handle both dictionary and single number formats for few_shot_str
+            if isinstance(self.config['few_shots'], dict):
+                few_shot_str = "_".join([f"{k}_{v}" for k, v in sorted(self.config['few_shots'].items(), key=lambda x: str(x[0]))])
+            else:
+                # Single number format
+                few_shot_str = f"all_{self.config['few_shots']}"
+            #few_shot_str = "_".join([f"{k}_{v}" for k, v in sorted(self.config['few_shots'].items(), key=lambda x: str(x[0]))])
             few_shot_suffix = f"_fewshot_{few_shot_str}"
         
         cache_path = os.path.join(
@@ -256,6 +333,7 @@ class DataModule(pl.LightningDataModule):
             self.train_dataset, 
             batch_size=self.config['BATCH_SIZE'], 
             shuffle=True,
+            drop_last=True,
             num_workers=0
         )
     
