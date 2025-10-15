@@ -5,16 +5,16 @@ defaults:
 
 MODEL_NAME: 'bert-base-uncased'
 MAX_LENGTH: 128
-BATCH_SIZE: 128
+BATCH_SIZE: 64
 EPOCHS: 10
 LEARNING_RATE: 2e-5
 DEVICE: 0
-SAVED_DATA_DIR: '/data/nicolasr/llmcvi/llm/tokenized_data' 
+SAVED_DATA_DIR: '/home/kbhau001/loracvi/llmcvi/datasets/tokenized_data' 
 DATASET_NAME: '20ng' #'banking77' #'emotion' #'yelp_review_full' #
 
-USE_LOGGER: True 
+USE_LOGGER: True
 
-PROJECT_NAME: 'cvi-w-kmeans'
+PROJECT_NAME: 'fewshot-cvi'
 RUN_NAME: '20ng'
 NOTES_wo_cvi: 'Experiment without CVI with ag_news dataset. the test set is full.'
 NOTES_w_cvi: 'using test dataaset as the validation.'
@@ -24,7 +24,8 @@ USE_TEST_SUBSET: False
 TEST_SUBSET_RATIO: 0.5
 
 USE_SILHOUETTE: True
-SILHOUETTE_WEIGHT: 1.0  # λ parameter
+MAIN_LOSS_WEIGHT: 0.7
+SILHOUETTE_WEIGHT: 0.3  # λ parameter
 SLT_score_GOAL: 1.0
 # NUM_CLUSTERS: 5  # or use num_labels
 SILHOUETTE_START_EPOCH: 0  # when to satart applying silhouette loss
@@ -33,6 +34,7 @@ SHOW_CLASS_RATIO : False
 
 
 CALCULATE_SLT_AFTER: "EACH_BATCH"
+CALCULATE_SLT_AFTER_LAYERS: 12 #  6 9 or 12
 ##Emotion dataset
 # Total samples: 16,000
 
@@ -60,7 +62,7 @@ CALCULATE_SLT_AFTER: "EACH_BATCH"
 
 #banking 77 has 77 classes
 # ===================================
-#few_shots : {0:50, 1:50, 2:50, 3:50}
+few_shots : False  # {0:50, 1:50, 2:50, 3:50}
 
 
 #LORA
@@ -72,3 +74,86 @@ LORA_DROPOUT: 0.1
 hydra:
   job:
     chdir: True
+
+
+# Class 0 (0): 480 samples (4.2%)
+# Class 1 (1): 584 samples (5.2%)
+# Class 2 (2): 591 samples (5.2%)
+# Class 3 (3): 590 samples (5.2%)
+# Class 4 (4): 578 samples (5.1%)
+# Class 5 (5): 593 samples (5.2%)
+# Class 6 (6): 585 samples (5.2%)
+# Class 7 (7): 594 samples (5.3%)
+# Class 8 (8): 598 samples (5.3%)
+# Class 9 (9): 597 samples (5.3%)
+# Class 10 (10): 600 samples (5.3%)
+# Class 11 (11): 595 samples (5.3%)
+# Class 12 (12): 591 samples (5.2%)
+# Class 13 (13): 594 samples (5.3%)
+# Class 14 (14): 593 samples (5.2%)
+# Class 15 (15): 599 samples (5.3%)
+# Class 16 (16): 546 samples (4.8%)
+# Class 17 (17): 564 samples (5.0%)
+# Class 18 (18): 465 samples (4.1%)
+# Class 19 (19): 377 samples (3.3%)
+# ===================================
+# ~~ 20ng ~~
+
+# Class 0 (1): 810 samples (5.2%)
+# Class 1 (2): 852 samples (5.5%)
+# Class 2 (3): 887 samples (5.7%)
+# Class 3 (4): 859 samples (5.5%)
+# Class 4 (5): 858 samples (5.5%)
+# Class 5 (6): 859 samples (5.5%)
+# Class 6 (7): 850 samples (5.5%)
+# Class 7 (8): 723 samples (4.6%)
+# Class 8 (9): 845 samples (5.4%)
+# Class 9 (10): 701 samples (4.5%)
+# Class 10 (11): 839 samples (5.4%)
+# Class 11 (12): 791 samples (5.1%)
+# Class 12 (13): 795 samples (5.1%)
+# Class 13 (14): 885 samples (5.7%)
+# Class 14 (15): 887 samples (5.7%)
+# Class 15 (16): 734 samples (4.7%)
+# Class 16 (17): 843 samples (5.4%)
+# Class 17 (18): 432 samples (2.8%)
+# Class 18 (19): 622 samples (4.0%)
+# Class 19 (20): 511 samples (3.3%)
+# ===================================
+# ~~ biomedical ~~
+
+
+# Class 0 (1): 1,219 samples (12.3%)
+# Class 1 (2): 1,191 samples (12.1%)
+# Class 2 (3): 1,751 samples (17.7%)
+# Class 3 (4): 2,126 samples (21.5%)
+# Class 4 (5): 290 samples (2.9%)
+# Class 5 (6): 963 samples (9.8%)
+# Class 6 (7): 1,203 samples (12.2%)
+# Class 7 (8): 1,129 samples (11.4%)
+# ===================================
+# ~~ snippets ~~
+
+
+# Class 0 (1): 503 samples (3.3%)
+# Class 1 (2): 858 samples (5.7%)
+# Class 2 (3): 854 samples (5.7%)
+# Class 3 (4): 826 samples (5.5%)
+# Class 4 (5): 806 samples (5.3%)
+# Class 5 (6): 839 samples (5.6%)
+# Class 6 (7): 838 samples (5.6%)
+# Class 7 (8): 783 samples (5.2%)
+# Class 8 (9): 712 samples (4.7%)
+# Class 9 (10): 801 samples (5.3%)
+# Class 10 (11): 868 samples (5.8%)
+# Class 11 (12): 869 samples (5.8%)
+# Class 12 (13): 533 samples (3.5%)
+# Class 13 (14): 888 samples (5.9%)
+# Class 14 (15): 853 samples (5.7%)
+# Class 15 (16): 694 samples (4.6%)
+# Class 16 (17): 511 samples (3.4%)
+# Class 17 (18): 742 samples (4.9%)
+# Class 18 (19): 517 samples (3.4%)
+# Class 19 (20): 788 samples (5.2%)
+# ===================================
+# ~~ stackoverflow ~~
