@@ -2,7 +2,7 @@
 import torch
 from sklearn.cluster import MiniBatchKMeans
 import torch.nn.functional as F
-import faiss
+#import faiss
 import numpy as np
 
 
@@ -97,6 +97,7 @@ def get_fast_silhouette_score(feats: torch.Tensor, cluster_labels: torch.Tensor)
         curr_cluster_feats = feats[cluster_labels == current_lbl_val]
         if len(curr_cluster_feats) == 0:
             continue
+
         dists_to_centroids = torch.cdist(curr_cluster_feats, cluster_centroids)
         a = dists_to_centroids[:, centroid_idx_for_current_label]
         other_centroids_mask = torch.ones(k_actual, dtype=torch.bool, device=device)

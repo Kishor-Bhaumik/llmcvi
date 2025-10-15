@@ -2,7 +2,7 @@
 import torch
 from sklearn.cluster import MiniBatchKMeans
 import torch.nn.functional as F
-import faiss
+#import faiss
 import numpy as np
 
 def wo_compute_silhouette_loss(embeddings, labels, goal=0.8):
